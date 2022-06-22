@@ -86,4 +86,24 @@ def LoginPage(request):
 def LogOutPage(request):
 	logout(request)
 	return redirect('login')    
-    
+
+
+def add_food(request):
+    #for showing all food items available
+	food_items = Food.objects.filter(person_of=request.user)
+	form = AddFoodForm(request.POST) 
+	if request.method == 'POST':
+		form = AddFoodForm(request.POST)
+		if form.is_valid():
+			profile = form.save(commit=False)
+			profile.person_of = request.user
+			profile.save()
+			return redirect('add_food')
+	else:
+		form = AddFoodForm()
+	#for filtering food
+	myFilter = FoodFilter(request.GET,queryset=food_items)
+	food_items = myFilter.qs
+	context = {'form':form,'food_items':food_items,'myFilter':myFilter}
+	return render(request,'add_food.html',context)
+
