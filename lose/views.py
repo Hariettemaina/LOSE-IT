@@ -30,7 +30,7 @@ def HomepageView(request):
     calories = Profile.objects.filter(person_of=request.user).last()
 		
         
-    all_food_today=PostFood.objects.Filter(profile=calories)
+    all_food_today=PostFood.objects.filter(profile=calories)
     
     calorie_goal_status = calorie_goal -calories.total_calorie
     over_calorie = 0
@@ -44,6 +44,7 @@ def HomepageView(request):
 	'over_calorie' : over_calorie,
 	'food_selected_today':all_food_today
 	}
+    return render(request,'home.html',context)
 
 #signup page
 def RegisterPage(request):
@@ -64,7 +65,7 @@ def RegisterPage(request):
     
 
 
-#login page
+
 def LoginPage(request):
 	if request.user.is_authenticated:
 		return redirect('home')
@@ -87,7 +88,7 @@ def LogOutPage(request):
 	logout(request)
 	return redirect('login')    
 
-
+@login_required(login_url='login')
 def add_food(request):
     #for showing all food items available
 	food_items = Food.objects.filter(person_of=request.user)
@@ -107,3 +108,74 @@ def add_food(request):
 	context = {'form':form,'food_items':food_items,'myFilter':myFilter}
 	return render(request,'add_food.html',context)
 
+
+#for updating food given by the user
+@login_required(login_url='login')
+def update_food(request,pk):
+	food_items = Food.objects.filter(person_of=request.user)
+
+	food_item = Food.objects.get(id=pk)
+	form =  AddFoodForm(instance=food_item)
+	if request.method == 'POST':
+		form = AddFoodForm(request.POST,instance=food_item)
+		if form.is_valid():
+			form.save()
+			return redirect('profile')
+	myFilter = FoodFilter(request.GET,queryset=food_items)
+	context = {'form':form,'food_items':food_items,'myFilter':myFilter}
+
+	return render(request,'add_food.html',context)
+
+#for deleting food given by the user
+@login_required(login_url='login')
+def delete_food(request,pk):
+	food_item = Food.objects.get(id=pk)
+	if request.method == "POST":
+		food_item.delete()
+		return redirect('profile')
+	context = {'food':food_item,}
+	return render(request,'delete_food.html',context)
+
+#profile page of user
+@login_required(login_url='login')
+def ProfilePage(request):
+	#getting the lastest profile object for the user
+	person = Profile.objects.filter(person_of=request.user).last()
+	food_items = Food.objects.filter(person_of=request.user)
+	form = ProfileForm(instance=person)
+
+	if request.method == 'POST':
+		form = ProfileForm(request.POST,instance=person)
+		if form.is_valid():	
+			form.save()
+			return redirect('profile')
+	else:
+		form = ProfileForm(instance=person)
+
+	#querying all records for the last seven days 
+	some_day_last_week = timezone.now().date() -timedelta(days=7)
+	records=Profile.objects.filter(date__gte=some_day_last_week,date__lt=timezone.now().date(),person_of=request.user)
+
+	context = {'form':form,'food_items':food_items,'records':records}
+	return render(request, 'profile.html',context)
+
+
+#for selecting food each day
+@login_required(login_url='login')
+def select_food(request):
+	person = Profile.objects.filter(person_of=request.user).last()
+	#for showing all food items available
+	food_items = Food.objects.filter(person_of=request.user)
+	form = SelectFoodForm(request.user,instance=person)
+
+	if request.method == 'POST':
+		form = SelectFoodForm(request.user,request.POST,instance=person)
+		if form.is_valid():
+			
+			form.save()
+			return redirect('home')
+	else:
+		form = SelectFoodForm(request.user)
+
+	context = {'form':form,'food_items':food_items}
+	return render(request, 'select_food.html',context)
